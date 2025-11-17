@@ -23,7 +23,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     try:
-        driver.get("https://oportunidades.mindsight.com.br/demoprodutos/428/register")
+        driver.get("https://oportunidades.mindsight.com.br/demoprodutos/458/register")
         wait = WebDriverWait(driver, 10)
 
         # Preencher campos obrigatórios
