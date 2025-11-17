@@ -1,24 +1,23 @@
-FROM python:3.10-slim
+FROM ubuntu:20.04
 
-# Instalar Chromium + ChromeDriver + libs do sistema
-RUN apt-get update && apt-get install -y \
-    chromium chromium-driver \
-    libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxss1 \
-    libappindicator3-1 libasound2 libatk-bridge2.0-0 libgtk-3-0 \
-    wget curl unzip gnupg && apt-get clean
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Variáveis para localizar os binários
-ENV CHROME_BIN=/usr/bin/chromium
+RUN apt‑get update && \
+    apt‑get install -y --no-install-recommends \
+      chromium-browser \
+      chromium-chromedriver \
+      libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxss1 \
+      libappindicator3-1 libasound2 libatk-bridge2.0-0 libgtk-3-0 \
+      wget curl unzip gnupg && \
+    apt‑get clean && rm ‑rf /var/lib/apt/lists/*
+
+ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-# Instalar dependências Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar o código da aplicação
 COPY . .
 
-# Expõe a porta usada pelo Flask
 EXPOSE 5000
-
-CMD ["python", "app.py"]
+CMD ["python","app.py"]
