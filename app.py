@@ -27,23 +27,23 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         wait = WebDriverWait(driver, 15)
 
         # Preencher campos obrigatórios
-        wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
-        driver.find_element(By.ID, "email").send_keys(email)
-        driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
-        driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
-        driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
+        # wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
+        # driver.find_element(By.ID, "email").send_keys(email)
+        # driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
+        # driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
+        # driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
 
-        # Selecionar origem (ex: Instagram)
-        dropdown = driver.find_element(By.ID, "candidateSource")
-        driver.execute_script("arguments[0].click();", dropdown)
-        time.sleep(1)
-        opcao_xpath = f"//div[contains(@class, 'ant-select-item-option') and .//div[text()='{origem}']]"
-        opcao = driver.find_element(By.XPATH, opcao_xpath)
-        driver.execute_script("arguments[0].click();", opcao)
+        # # Selecionar origem (ex: Instagram)
+        # dropdown = driver.find_element(By.ID, "candidateSource")
+        # driver.execute_script("arguments[0].click();", dropdown)
+        # time.sleep(1)
+        # opcao_xpath = f"//div[contains(@class, 'ant-select-item-option') and .//div[text()='{origem}']]"
+        # opcao = driver.find_element(By.XPATH, opcao_xpath)
+        # driver.execute_script("arguments[0].click();", opcao)
 
-        # Enviar o formulário
-        botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
-        driver.execute_script("arguments[0].click();", botao)
+        # # Enviar o formulário
+        # botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
+        # driver.execute_script("arguments[0].click();", botao)
 
         time.sleep(5)  # espera resposta
         return True
