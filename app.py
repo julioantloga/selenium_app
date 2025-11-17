@@ -5,6 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
+
 import time
 from traceback import format_exc
 
@@ -33,32 +35,44 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.find_element(By.ID, "birthday").send_keys("17/11/2000")
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
         
-        # Abrir o dropdown clicando no container real
+        # Clica no container do dropdown (não no input invisível)
         select_container = driver.find_element(By.CLASS_NAME, "ant-select")
         driver.execute_script("arguments[0].click();", select_container)
 
-        # Esperar o dropdown aparecer
+        # Espera o dropdown aparecer de verdade
         wait = WebDriverWait(driver, 10)
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
+        wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
 
-        # Agora buscar todas as opções renderizadas
+        # Aguarda que a lista de opções fique disponível e visível
+        wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
+
+        # Busca as opções pelo texto interno
         opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
 
-        # Texto da origem desejada (pode vir da query string ou ser fixo)
+        # Define a opção que você quer selecionar (pode vir da URL ou fixo)
         texto_desejado = origem.strip() if origem else "Instagram"
 
-        # Procurar a opção pelo conteúdo do título
         clicou = False
         for opcao in opcoes:
-            titulo = opcao.get_attribute("title")
-            if titulo and titulo.strip().lower() == texto_desejado.lower():
-                wait.until(EC.element_to_be_clickable(opcao))
-                opcao.click()
-                clicou = True
-                break
+            try:
+                texto_opcao = opcao.text.strip().lower()
+                if texto_opcao == texto_desejado.lower():
+                    # Scroll até a opção (importante para listas com scroll virtual)
+                    driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
+
+                    # Espera que esteja clicável
+                    wait.until(EC.element_to_be_clickable(opcao))
+
+                    # Usa ActionChains para simular um clique real
+                    actions = ActionChains(driver)
+                    actions.move_to_element(opcao).click().perform()
+                    clicou = True
+                    break
+            except Exception as e:
+                print("Erro ao tentar clicar na opção:", e)
 
         if not clicou:
-            raise Exception(f"⚠️ Não foi possível encontrar a opção '{texto_desejado}' no dropdown.")
+            raise Exception(f"⚠️ Não foi possível encontrar ou clicar na opção '{texto_desejado}' do dropdown.")
 
 
         # Enviar o formulário
