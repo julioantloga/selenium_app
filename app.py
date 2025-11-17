@@ -24,7 +24,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
 
     try:
         driver.get("https://oportunidades.mindsight.com.br/demoprodutos/428/register")
-        wait = WebDriverWait(driver, 15)
+        wait = WebDriverWait(driver, 10)
 
         # Preencher campos obrigatórios
         wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
@@ -33,14 +33,23 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
 
-        # Selecionar origem
-        dropdown = driver.find_element(By.ID, "candidateSource")
-        driver.execute_script("arguments[0].click();", dropdown)
-        time.sleep(1)
+        # Clicar no container real do select (não no input oculto)
+        select_container = driver.find_element(By.CLASS_NAME, "ant-select")
+        driver.execute_script("arguments[0].click();", select_container)
 
-        # # Seleciona a segunda opção da lista
-        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
-        driver.execute_script("arguments[0].click();", opcoes[1])
+        # Esperar o dropdown renderizar no DOM
+        wait = WebDriverWait(driver, 5)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
+
+        # Agora buscar as opções visíveis
+        dropdown_container = driver.find_element(By.CLASS_NAME, "ant-select-dropdown")
+        opcoes = dropdown_container.find_elements(By.CLASS_NAME, "ant-select-item-option")
+
+        if len(opcoes) >= 2:
+            wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "ant-select-item-option")))
+            opcoes[1].click()  # clica na segunda opção
+        else:
+            raise Exception("Menos de 2 opções encontradas no selectbox.")
 
 
         # # Enviar o formulário
