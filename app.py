@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 import time
+from traceback import format_exc
 
 app = Flask(__name__)
 
@@ -48,7 +49,8 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         return True
 
     except Exception as e:
-        print("Erro ao enviar:", str(e))
+        print("🚨 Erro ao preencher/enviar formulário:")
+        print(format_exc())  # mostra traceback completo
         return False
 
     finally:
