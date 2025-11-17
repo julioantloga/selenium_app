@@ -33,10 +33,33 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.find_element(By.ID, "birthday").send_keys("17/11/2000")
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
         
-        campo_origem = driver.find_element(By.ID, "candidateSource")
-        driver.execute_script("arguments[0].removeAttribute('required')", campo_origem)
-        driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
-        driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
+        # Abrir o dropdown clicando no container real
+        select_container = driver.find_element(By.CLASS_NAME, "ant-select")
+        driver.execute_script("arguments[0].click();", select_container)
+
+        # Esperar o dropdown aparecer
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
+
+        # Agora buscar todas as opções renderizadas
+        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+
+        # Texto da origem desejada (pode vir da query string ou ser fixo)
+        texto_desejado = origem.strip() if origem else "Instagram"
+
+        # Procurar a opção pelo conteúdo do título
+        clicou = False
+        for opcao in opcoes:
+            titulo = opcao.get_attribute("title")
+            if titulo and titulo.strip().lower() == texto_desejado.lower():
+                wait.until(EC.element_to_be_clickable(opcao))
+                opcao.click()
+                clicou = True
+                break
+
+        if not clicou:
+            raise Exception(f"⚠️ Não foi possível encontrar a opção '{texto_desejado}' no dropdown.")
+
 
         # Enviar o formulário
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
