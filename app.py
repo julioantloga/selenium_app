@@ -54,6 +54,10 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
     finally:
         driver.quit()
 
+@app.route("/", methods=["GET"])
+def home():
+    return ("Hello!")
+
 @app.route("/inscricaofinal", methods=["GET"])
 def inscricao_final():
     nome = request.args.get("nome")
