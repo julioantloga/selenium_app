@@ -27,7 +27,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         wait = WebDriverWait(driver, 15)
 
         # Preencher campos obrigatórios
-        # wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
+        wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
         # driver.find_element(By.ID, "email").send_keys(email)
         # driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
         # driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
