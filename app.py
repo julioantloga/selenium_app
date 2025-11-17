@@ -33,13 +33,20 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
 
-        # Selecionar origem (ex: Instagram)
+        # Selecionar origem
         dropdown = driver.find_element(By.ID, "candidateSource")
         driver.execute_script("arguments[0].click();", dropdown)
         time.sleep(1)
-        opcao_xpath = f"//div[contains(@class, 'ant-select-item-option') and .//div[text()='{origem}']]"
-        opcao = driver.find_element(By.XPATH, opcao_xpath)
-        driver.execute_script("arguments[0].click();", opcao)
+
+        # Seleciona a segunda opção da lista
+        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+        if len(opcoes) >= 2:
+            segunda_opcao = opcoes[1]
+            driver.execute_script("arguments[0].click();", segunda_opcao)
+        else:
+            print("⚠️ Menos de 2 opções encontradas no selectbox.")
+            raise Exception("Erro ao selecionar a opção do dropdown.")
+
 
         # # Enviar o formulário
         # botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
