@@ -38,9 +38,9 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
         driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
 
-        # # Enviar o formulário
-        # botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
-        # driver.execute_script("arguments[0].click();", botao)
+        # Enviar o formulário
+        botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
+        driver.execute_script("arguments[0].click();", botao)
 
         time.sleep(5)  # espera resposta
         return True
