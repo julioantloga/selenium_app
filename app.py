@@ -40,12 +40,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
 
         # # Seleciona a segunda opção da lista
         opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
-        # if len(opcoes) >= 2:
-        #     segunda_opcao = opcoes[1]
-        #     driver.execute_script("arguments[0].click();", segunda_opcao)
-        # else:
-        #     print("⚠️ Menos de 2 opções encontradas no selectbox.")
-        #     raise Exception("Erro ao selecionar a opção do dropdown.")
+        driver.execute_script("arguments[0].click();", opcoes[1])
 
 
         # # Enviar o formulário
