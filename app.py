@@ -32,25 +32,11 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
         driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
-
-        # Clicar no container real do select (não no input oculto)
-        select_container = driver.find_element(By.CLASS_NAME, "ant-select")
-        driver.execute_script("arguments[0].click();", select_container)
-
-        # Esperar o dropdown renderizar no DOM
-        wait = WebDriverWait(driver, 5)
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
-
-        # Agora buscar as opções visíveis
-        dropdown_container = driver.find_element(By.CLASS_NAME, "ant-select-dropdown")
-        opcoes = dropdown_container.find_elements(By.CLASS_NAME, "ant-select-item-option")
-
-        if len(opcoes) >= 2:
-            wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "ant-select-item-option")))
-            opcoes[1].click()  # clica na segunda opção
-        else:
-            raise Exception("Menos de 2 opções encontradas no selectbox.")
-
+        
+        campo_origem = driver.find_element(By.ID, "candidateSource")
+        driver.execute_script("arguments[0].removeAttribute('required')", campo_origem)
+        driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
+        driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
 
         # # Enviar o formulário
         # botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
