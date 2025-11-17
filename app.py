@@ -39,7 +39,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         time.sleep(1)
 
         # # Seleciona a segunda opção da lista
-        # opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
         # if len(opcoes) >= 2:
         #     segunda_opcao = opcoes[1]
         #     driver.execute_script("arguments[0].click();", segunda_opcao)
