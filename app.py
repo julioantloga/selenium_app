@@ -29,9 +29,9 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         # Preencher campos obrigatórios
         wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
         driver.find_element(By.ID, "email").send_keys(email)
-        # driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
-        # driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
-        # driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
+        driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
+        driver.find_element(By.ID, "birthday").send_keys(data_nascimento)
+        driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
 
         # # Selecionar origem (ex: Instagram)
         # dropdown = driver.find_element(By.ID, "candidateSource")
@@ -77,9 +77,9 @@ def inscricao_final():
     sucesso = preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem)
 
     if sucesso:
-        return jsonify({"status": "ok", "mensagem": "Formulário enviado com sucesso."})
+        return jsonify({"status": "ok", "mensagem": "Formulario enviado com sucesso."})
     else:
-        return jsonify({"status": "erro", "mensagem": "Erro ao enviar formulário."}), 500
+        return jsonify({"status": "erro", "mensagem": "Erro ao enviar formulario."}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
