@@ -43,6 +43,9 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
         driver.execute_script("arguments[0].click();", botao)
 
+        logs = driver.get_log("browser")
+        for entry in logs:
+            print(f"[{entry['level']}] {entry['message']}")
     
         time.sleep(5)  # espera resposta
         return True
