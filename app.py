@@ -42,11 +42,21 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         campo_cpf.send_keys(cpf)
 
         # Campo origem: remove obrigatoriedade e insere valor
-        campo_origem = driver.find_element(By.ID, "candidateSource")
-        driver.execute_script("arguments[0].removeAttribute('required')", campo_origem)
-        driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
-        driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
-        campo_origem.send_keys(origem)
+        select_box = driver.find_element(By.CLASS_NAME, "ant-select")
+        driver.execute_script("arguments[0].click();", select_box)
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
+        
+        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+
+        for opcao in opcoes:
+            texto = opcao.text.strip()
+            if texto.lower() == origem.lower():
+                wait.until(EC.element_to_be_clickable(opcao))
+                opcao.click()
+                break
+        
+        valor_visivel = driver.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
 
         # Captura os valores no DOM após preenchimento
         valores_no_dom = {
@@ -55,7 +65,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
             "telefone": campo_telefone.get_attribute("value"),
             "data_nascimento": campo_data.get_attribute("value"),
             "cpf": campo_cpf.get_attribute("value"),
-            "origem": campo_origem.get_attribute("value"),
+            "origem": valor_visivel,
         }
 
         # Clicar no botão Enviar
