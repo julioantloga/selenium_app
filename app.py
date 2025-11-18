@@ -23,30 +23,45 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     browser_logs = []
+    valores_no_dom = {}
 
     try:
         driver.get("https://oportunidades.mindsight.com.br/demoprodutos/458/register")
         wait = WebDriverWait(driver, 10)
 
         # Preencher campos
-        wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
-        driver.find_element(By.ID, "email").send_keys(email)
-        driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
-        driver.find_element(By.ID, "birthday").send_keys("17/11/2000")
-        driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
+        campo_nome = wait.until(EC.presence_of_element_located((By.ID, "name")))
+        campo_nome.send_keys(nome)
+        campo_email = driver.find_element(By.ID, "email")
+        campo_email.send_keys(email)
+        campo_telefone = driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber")
+        campo_telefone.send_keys(telefone)
+        campo_data = driver.find_element(By.ID, "birthday")
+        campo_data.send_keys(data_nascimento)
+        campo_cpf = driver.find_element(By.ID, "candidateCPF")
+        campo_cpf.send_keys(cpf)
 
-        # Campo origem: remove obrigatoriedade
+        # Campo origem: remove obrigatoriedade e insere valor
         campo_origem = driver.find_element(By.ID, "candidateSource")
         driver.execute_script("arguments[0].removeAttribute('required')", campo_origem)
         driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
         driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
         campo_origem.send_keys(origem)
 
+        # Captura os valores no DOM após preenchimento
+        valores_no_dom = {
+            "nome": campo_nome.get_attribute("value"),
+            "email": campo_email.get_attribute("value"),
+            "telefone": campo_telefone.get_attribute("value"),
+            "data_nascimento": campo_data.get_attribute("value"),
+            "cpf": campo_cpf.get_attribute("value"),
+            "origem": campo_origem.get_attribute("value"),
+        }
+
         # Clicar no botão Enviar
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
         driver.execute_script("arguments[0].click();", botao)
 
-        # Esperar algo acontecer
         time.sleep(5)
 
         # Captura os logs do navegador
@@ -57,7 +72,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
                 "message": entry.get("message")
             })
 
-        return True, browser_logs
+        return True, browser_logs, valores_no_dom
 
     except Exception as e:
         browser_logs.append({
@@ -65,7 +80,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
             "message": str(e),
             "traceback": format_exc()
         })
-        return False, browser_logs
+        return False, browser_logs, valores_no_dom
 
     finally:
         driver.quit()
@@ -91,20 +106,34 @@ def inscricao_final():
             "mensagem": "Parâmetros obrigatórios ausentes."
         }), 400
 
-    sucesso, logs = preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem)
+    sucesso, logs, valores_dom = preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem)
+
+    valores_enviados = {
+        "nome": nome,
+        "email": email,
+        "telefone": telefone,
+        "data_nascimento": data_nascimento,
+        "cpf": cpf,
+        "origem": origem
+    }
 
     if sucesso:
         return jsonify({
             "status": "ok",
             "mensagem": "Formulário enviado com sucesso.",
+            "valores_enviados": valores_enviados,
+            "valores_no_dom": valores_dom,
             "logs": logs
         })
     else:
         return jsonify({
             "status": "erro",
             "mensagem": "Erro ao enviar formulário.",
+            "valores_enviados": valores_enviados,
+            "valores_no_dom": valores_dom,
             "logs": logs
         }), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
