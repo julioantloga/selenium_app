@@ -5,10 +5,38 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 from traceback import format_exc
 
 app = Flask(__name__)
+
+
+def selecionar_origem(driver, wait, origem):
+    try:
+        # Clica no seletor visível do Ant Design
+        seletor = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "ant-select-selector")))
+        ActionChains(driver).move_to_element(seletor).click().perform()
+
+        # Aguarda as opções aparecerem no dropdown
+        wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
+
+        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+        for opcao in opcoes:
+            texto = opcao.text.strip()
+            if texto.lower() == origem.lower():
+                driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
+                wait.until(EC.element_to_be_clickable(opcao))
+                opcao.click()
+                break
+
+        # Captura o valor selecionado visível
+        valor_selecionado = driver.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
+        return valor_selecionado
+
+    except Exception as e:
+        raise Exception(f"Erro ao selecionar origem '{origem}': {e}")
+
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
     chrome_options = Options()
@@ -29,7 +57,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         driver.get("https://oportunidades.mindsight.com.br/demoprodutos/458/register")
         wait = WebDriverWait(driver, 10)
 
-        # Preencher campos
+        # Preenche os campos
         campo_nome = wait.until(EC.presence_of_element_located((By.ID, "name")))
         campo_nome.send_keys(nome)
         campo_email = driver.find_element(By.ID, "email")
@@ -41,34 +69,20 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
         campo_cpf = driver.find_element(By.ID, "candidateCPF")
         campo_cpf.send_keys(cpf)
 
-        # Campo origem: remove obrigatoriedade e insere valor
-        select_box = driver.find_element(By.CLASS_NAME, "ant-select")
-        driver.execute_script("arguments[0].click();", select_box)
-        wait = WebDriverWait(driver, 10)
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ant-select-dropdown")))
-        
-        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
+        # Seleciona a origem via dropdown Ant Design
+        valor_origem = selecionar_origem(driver, wait, origem)
 
-        for opcao in opcoes:
-            texto = opcao.text.strip()
-            if texto.lower() == origem.lower():
-                wait.until(EC.element_to_be_clickable(opcao))
-                opcao.click()
-                break
-        
-        valor_visivel = driver.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
-
-        # Captura os valores no DOM após preenchimento
+        # Captura os valores reais no DOM
         valores_no_dom = {
             "nome": campo_nome.get_attribute("value"),
             "email": campo_email.get_attribute("value"),
             "telefone": campo_telefone.get_attribute("value"),
             "data_nascimento": campo_data.get_attribute("value"),
             "cpf": campo_cpf.get_attribute("value"),
-            "origem": valor_visivel,
+            "origem": valor_origem
         }
 
-        # Clicar no botão Enviar
+        # Clica no botão "Enviar candidatura"
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
         driver.execute_script("arguments[0].click();", botao)
 
@@ -98,7 +112,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "Olá!"})
+    return jsonify({"message": "Olá! Sistema de automação ativo."})
 
 
 @app.route("/inscricaofinal", methods=["GET"])
