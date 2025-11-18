@@ -8,8 +8,28 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 from traceback import format_exc
+from datetime import datetime
 
 app = Flask(__name__)
+
+
+def formatar_data_nascimento(data):
+    formatos_possiveis = [
+        "%d/%m/%Y",  # já está no formato correto
+        "%Y-%m-%d",  # formato ISO: 2025-11-17
+        "%m/%d/%Y",  # formato americano
+        "%d-%m-%Y",  # comum em exportações CSV
+        "%Y/%m/%d",  # alternativo ISO
+    ]
+
+    for fmt in formatos_possiveis:
+        try:
+            dt = datetime.strptime(data, fmt)
+            return dt.strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+
+    raise ValueError(f"Formato de data inválido: '{data}'. Use DD/MM/AAAA ou formatos comuns.")
 
 
 def selecionar_origem(driver, wait, origem):
@@ -128,8 +148,16 @@ def inscricao_final():
     email = request.args.get("email")
     telefone = request.args.get("telefone")
     cpf = request.args.get("cpf")
-    data_nascimento = request.args.get("data_nascimento")
     origem = request.args.get("origem", "Instagram")
+
+    try:
+        data_nascimento_raw = request.args.get("data_nascimento")
+        data_nascimento = formatar_data_nascimento(data_nascimento_raw)
+    except Exception as e:
+        return jsonify({
+            "status": "erro",
+            "mensagem": f"Data de nascimento inválida: {e}"
+        }), 400
 
     if not all([nome, email, telefone, cpf, data_nascimento]):
         return jsonify({
