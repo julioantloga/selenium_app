@@ -14,11 +14,17 @@ app = Flask(__name__)
 
 def selecionar_origem(driver, wait, origem):
     try:
-        # Clica no seletor visível do Ant Design
-        seletor = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "ant-select-selector")))
+        # Localiza o input com id candidateSource
+        input_elem = wait.until(EC.presence_of_element_located((By.ID, "candidateSource")))
+
+        # Sobe até o componente ant-select pai
+        ant_select_container = input_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select')]")
+
+        # Dentro do container, localiza o seletor clicável
+        seletor = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selector")
         ActionChains(driver).move_to_element(seletor).click().perform()
 
-        # Aguarda as opções aparecerem no dropdown
+        # Aguarda as opções renderizadas visíveis
         wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
 
         opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
@@ -30,12 +36,13 @@ def selecionar_origem(driver, wait, origem):
                 opcao.click()
                 break
 
-        # Captura o valor selecionado visível
-        valor_selecionado = driver.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
+        # Captura o valor visível selecionado
+        valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
         return valor_selecionado
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar origem '{origem}': {e}")
+
 
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
