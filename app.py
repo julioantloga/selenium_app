@@ -17,43 +17,55 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem):
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
 
-    # Caminho para o ChromeDriver no container
     service = Service("/usr/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    browser_logs = []
 
     try:
         driver.get("https://oportunidades.mindsight.com.br/demoprodutos/458/register")
         wait = WebDriverWait(driver, 10)
 
-        # Preencher campos obrigatórios
+        # Preencher campos
         wait.until(EC.presence_of_element_located((By.ID, "name"))).send_keys(nome)
         driver.find_element(By.ID, "email").send_keys(email)
         driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber").send_keys(telefone)
         driver.find_element(By.ID, "birthday").send_keys("17/11/2000")
         driver.find_element(By.ID, "candidateCPF").send_keys(cpf)
-        
+
+        # Campo origem: remove obrigatoriedade
         campo_origem = driver.find_element(By.ID, "candidateSource")
         driver.execute_script("arguments[0].removeAttribute('required')", campo_origem)
         driver.execute_script("arguments[0].removeAttribute('aria-required')", campo_origem)
         driver.execute_script("arguments[0].removeAttribute('readonly')", campo_origem)
-        driver.find_element(By.ID, "candidateSource").send_keys("Instagram")
+        campo_origem.send_keys(origem)
 
-        # Enviar o formulário
+        # Clicar no botão Enviar
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
         driver.execute_script("arguments[0].click();", botao)
 
+        # Esperar algo acontecer
+        time.sleep(5)
+
+        # Captura os logs do navegador
         logs = driver.get_log("browser")
         for entry in logs:
-            print(f"[{entry['level']}] {entry['message']}")
-    
-        time.sleep(5)  # espera resposta
-        return True
+            browser_logs.append({
+                "level": entry.get("level"),
+                "message": entry.get("message")
+            })
+
+        return True, browser_logs
 
     except Exception as e:
-        print("🚨 Erro ao preencher/enviar formulário:")
-        print(format_exc())  # mostra traceback completo
-        return False
+        browser_logs.append({
+            "level": "ERROR",
+            "message": str(e),
+            "traceback": format_exc()
+        })
+        return False, browser_logs
 
     finally:
         driver.quit()
@@ -74,14 +86,25 @@ def inscricao_final():
     origem = request.args.get("origem", "Instagram")
 
     if not all([nome, email, telefone, cpf, data_nascimento]):
-        return jsonify({"status": "erro", "mensagem": "Parâmetros obrigatórios ausentes."}), 400
+        return jsonify({
+            "status": "erro",
+            "mensagem": "Parâmetros obrigatórios ausentes."
+        }), 400
 
-    sucesso = preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem)
+    sucesso, logs = preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem)
 
     if sucesso:
-        return jsonify({"status": "ok", "mensagem": "Formulario enviado com sucesso."})
+        return jsonify({
+            "status": "ok",
+            "mensagem": "Formulário enviado com sucesso.",
+            "logs": logs
+        })
     else:
-        return jsonify({"status": "erro", "mensagem": "Erro ao enviar formulario."}), 500
+        return jsonify({
+            "status": "erro",
+            "mensagem": "Erro ao enviar formulário.",
+            "logs": logs
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
