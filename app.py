@@ -46,15 +46,15 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
         seletor = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selector")
         ActionChains(driver).move_to_element(seletor).click().perform()
 
-        # Espera dropdown abrir
+        # Aguarda o dropdown aparecer
         wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
         time.sleep(0.5)
 
         dropdown_popup = driver.find_element(By.CLASS_NAME, "ant-select-dropdown")
-        scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder-inner")
+        scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder")
 
-        scroll_attempts = 0
         ultima_qtd_opcoes = 0
+        scroll_attempts = 0
 
         while scroll_attempts < max_scrolls:
             opcoes = dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option")
@@ -73,18 +73,18 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
             driver.execute_script("arguments[0].scrollTop = arguments[0].scrollTop + 100;", scroll_container)
             time.sleep(0.5)
 
-            # Verifica se surgiram novas opções
             nova_qtd = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
             if nova_qtd == ultima_qtd_opcoes:
                 scroll_attempts += 1
             else:
-                scroll_attempts = 0  # reseta se encontrar mais opções
                 ultima_qtd_opcoes = nova_qtd
+                scroll_attempts = 0  # Reset se novas opções aparecerem
 
         raise Exception(f"Opção '{valor}' não encontrada após {max_scrolls} scrolls.")
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
+
 
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, pais, estado, cidade):
