@@ -92,7 +92,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         campo_pretencao = driver.find_element(By.ID, "salaryExpectation")
         campo_pretencao.send_keys(pretencao or "")
 
-        valor_pais = selecionar_dropdown_ant(driver, wait, "country", pais, delay_apos=2)
+        #valor_pais = selecionar_dropdown_ant(driver, wait, "country", pais, delay_apos=2)
         valor_estado = selecionar_dropdown_ant(driver, wait, "state", estado, delay_apos=2)
         valor_cidade = selecionar_dropdown_ant(driver, wait, "city", cidade, delay_apos=1)
         valor_origem = selecionar_dropdown_ant(driver, wait, "candidateSource", origem)
@@ -105,7 +105,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
             "cpf": campo_cpf.get_attribute("value"),
             "linkedin": campo_linkedin.get_attribute("value"),
             "pretencao": campo_pretencao.get_attribute("value"),
-            "pais": valor_pais,
+            #"pais": valor_pais,
             "estado": valor_estado,
             "cidade": valor_cidade,
             "origem": valor_origem
