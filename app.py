@@ -50,19 +50,18 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
         ActionChains(driver).move_to_element(seletor).click().perform()
         time.sleep(0.5)
 
-        # 2. Identifica o ID do dropdown: ex: "state" -> "state_list"
+        # 2. Identifica o ID da lista: ex: "state" -> "state_list"
         dropdown_id = input_elem.get_attribute("aria-controls")
         if not dropdown_id:
             raise Exception(f"Não foi possível encontrar 'aria-controls' no input '{input_id}'.")
 
-        # 3. Aguarda até o dropdown certo ser renderizado e visível
-        wait.until(lambda d: d.find_element(By.ID, dropdown_id).is_displayed())
+        # 3. Aguarda o elemento da lista ser visível
+        listbox_elem = wait.until(EC.visibility_of_element_located((By.ID, dropdown_id)))
 
-        # 4. Sobe até o .ant-select-dropdown pai que contém esse listbox
-        listbox_elem = driver.find_element(By.ID, dropdown_id)
+        # 4. Sobe para o dropdown pai correspondente
         dropdown_popup = listbox_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select-dropdown') and not(contains(@class, 'ant-select-dropdown-hidden'))]")
 
-        # 5. Acha o scroll container
+        # 5. Acha o scroll container correto
         scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder")
 
         scrolls_feitos = 0
@@ -85,21 +84,22 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
                 except Exception:
                     continue
 
-            # Scroll para baixo
+            # Scroll incremental
             driver.execute_script("arguments[0].scrollTop += 100;", scroll_container)
             time.sleep(0.5)
 
-            nova_qtd = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
-            if nova_qtd == ultima_qtd_opcoes:
+            qtd_atual = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
+            if qtd_atual == ultima_qtd_opcoes:
                 scrolls_feitos += 1
             else:
-                ultima_qtd_opcoes = nova_qtd
+                ultima_qtd_opcoes = qtd_atual
                 scrolls_feitos = 0
 
         raise Exception(f"Opção '{valor}' não encontrada após {max_scrolls} scrolls.")
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
+
 
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, pais, estado, cidade):
