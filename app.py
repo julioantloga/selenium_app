@@ -9,8 +9,10 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 from traceback import format_exc
 from datetime import datetime
+import unicodedata
 
 app = Flask(__name__)
+
 
 def formatar_data_nascimento(data):
     formatos_possiveis = [
@@ -30,6 +32,13 @@ def formatar_data_nascimento(data):
 
     raise ValueError(f"Formato de data inválido: '{data}'. Use DD/MM/AAAA ou formatos comuns.")
 
+
+def normalizar(texto):
+    if not texto:
+        return ""
+    return unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII").strip()
+
+
 def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5):
     try:
         input_elem = wait.until(EC.presence_of_element_located((By.ID, input_id)))
@@ -38,23 +47,24 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5):
         ActionChains(driver).move_to_element(seletor).click().perform()
 
         wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
-        time.sleep(0.5)  # Pequeno delay para garantir que tudo carregou
+        time.sleep(0.5)
 
         opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
         for opcao in opcoes:
             texto = opcao.text.strip()
-            if texto.lower() == valor.lower():
+            if normalizar(texto) == normalizar(valor):
                 driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
                 wait.until(EC.element_to_be_clickable(opcao))
                 opcao.click()
                 break
 
-        time.sleep(delay_apos)  # Aguarda carregamento de dropdowns dependentes, se necessário
+        time.sleep(delay_apos)
         valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
         return valor_selecionado
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
+
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, pais, estado, cidade):
     chrome_options = Options()
@@ -92,7 +102,8 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         campo_pretencao = driver.find_element(By.ID, "salaryExpectation")
         campo_pretencao.send_keys(pretencao or "")
 
-        #valor_pais = selecionar_dropdown_ant(driver, wait, "country", pais, delay_apos=2)
+        # Dropdowns encadeados
+        valor_pais = selecionar_dropdown_ant(driver, wait, "country", pais, delay_apos=2)
         valor_estado = selecionar_dropdown_ant(driver, wait, "state", estado, delay_apos=2)
         valor_cidade = selecionar_dropdown_ant(driver, wait, "city", cidade, delay_apos=1)
         valor_origem = selecionar_dropdown_ant(driver, wait, "candidateSource", origem)
@@ -105,7 +116,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
             "cpf": campo_cpf.get_attribute("value"),
             "linkedin": campo_linkedin.get_attribute("value"),
             "pretencao": campo_pretencao.get_attribute("value"),
-            #"pais": valor_pais,
+            "pais": valor_pais,
             "estado": valor_estado,
             "cidade": valor_cidade,
             "origem": valor_origem
@@ -136,9 +147,11 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
     finally:
         driver.quit()
 
+
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Olá! Sistema de automação ativo."})
+
 
 @app.route("/inscricaofinal", methods=["GET"])
 def inscricao_final():
@@ -155,7 +168,6 @@ def inscricao_final():
     estado = request.args.get("estado")
     cidade = request.args.get("cidade")
 
-    # Validação obrigatória dos campos relacionados a URL e localização
     if not all([tenant, job_code]):
         return jsonify({
             "status": "erro",
@@ -202,6 +214,7 @@ def inscricao_final():
             "valores_no_dom": valores_dom,
             "logs": logs
         }), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
