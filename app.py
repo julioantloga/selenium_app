@@ -39,28 +39,49 @@ def normalizar(texto):
     return unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII").strip()
 
 
-def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5):
+def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=10):
     try:
         input_elem = wait.until(EC.presence_of_element_located((By.ID, input_id)))
         ant_select_container = input_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select')]")
         seletor = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selector")
         ActionChains(driver).move_to_element(seletor).click().perform()
 
+        # Espera dropdown abrir
         wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
         time.sleep(0.5)
 
-        opcoes = driver.find_elements(By.CLASS_NAME, "ant-select-item-option")
-        for opcao in opcoes:
-            texto = opcao.text.strip()
-            if normalizar(texto) == normalizar(valor):
-                driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
-                wait.until(EC.element_to_be_clickable(opcao))
-                opcao.click()
-                break
+        dropdown_popup = driver.find_element(By.CLASS_NAME, "ant-select-dropdown")
+        scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder-inner")
 
-        time.sleep(delay_apos)
-        valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
-        return valor_selecionado
+        scroll_attempts = 0
+        ultima_qtd_opcoes = 0
+
+        while scroll_attempts < max_scrolls:
+            opcoes = dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option")
+
+            for opcao in opcoes:
+                texto = opcao.text.strip()
+                if normalizar(texto) == normalizar(valor):
+                    driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
+                    wait.until(EC.element_to_be_clickable(opcao))
+                    opcao.click()
+                    time.sleep(delay_apos)
+                    valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
+                    return valor_selecionado
+
+            # Scroll para baixo
+            driver.execute_script("arguments[0].scrollTop = arguments[0].scrollTop + 100;", scroll_container)
+            time.sleep(0.5)
+
+            # Verifica se surgiram novas opções
+            nova_qtd = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
+            if nova_qtd == ultima_qtd_opcoes:
+                scroll_attempts += 1
+            else:
+                scroll_attempts = 0  # reseta se encontrar mais opções
+                ultima_qtd_opcoes = nova_qtd
+
+        raise Exception(f"Opção '{valor}' não encontrada após {max_scrolls} scrolls.")
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
