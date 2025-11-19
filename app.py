@@ -39,18 +39,30 @@ def normalizar(texto):
     return unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII").strip()
 
 
-def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=10):
+def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=15):
     try:
+        import re
+
+        # 1. Encontra o input e clica para abrir o dropdown
         input_elem = wait.until(EC.presence_of_element_located((By.ID, input_id)))
         ant_select_container = input_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select')]")
         seletor = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selector")
         ActionChains(driver).move_to_element(seletor).click().perform()
-
-        wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "ant-select-item-option")))
         time.sleep(0.5)
 
-        # Dropdown popup e scroll container
-        dropdown_popup = driver.find_element(By.CLASS_NAME, "ant-select-dropdown")
+        # 2. Identifica o ID do dropdown: ex: "state" -> "state_list"
+        dropdown_id = input_elem.get_attribute("aria-controls")
+        if not dropdown_id:
+            raise Exception(f"Não foi possível encontrar 'aria-controls' no input '{input_id}'.")
+
+        # 3. Aguarda até o dropdown certo ser renderizado e visível
+        wait.until(lambda d: d.find_element(By.ID, dropdown_id).is_displayed())
+
+        # 4. Sobe até o .ant-select-dropdown pai que contém esse listbox
+        listbox_elem = driver.find_element(By.ID, dropdown_id)
+        dropdown_popup = listbox_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select-dropdown') and not(contains(@class, 'ant-select-dropdown-hidden'))]")
+
+        # 5. Acha o scroll container
         scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder")
 
         scrolls_feitos = 0
@@ -60,25 +72,29 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
             opcoes = dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option")
 
             for opcao in opcoes:
-                texto = opcao.text.strip()
-                if normalizar(texto) == normalizar(valor):
-                    driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
-                    wait.until(EC.element_to_be_clickable(opcao))
-                    opcao.click()
-                    time.sleep(delay_apos)
-                    valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
-                    return valor_selecionado
+                try:
+                    content_div = opcao.find_element(By.CLASS_NAME, "ant-select-item-option-content")
+                    texto = content_div.text.strip()
+                    if normalizar(texto) == normalizar(valor):
+                        driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
+                        wait.until(EC.element_to_be_clickable(opcao))
+                        opcao.click()
+                        time.sleep(delay_apos)
+                        valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
+                        return valor_selecionado
+                except Exception:
+                    continue
 
-            # Scroll se ainda não encontrou
+            # Scroll para baixo
             driver.execute_script("arguments[0].scrollTop += 100;", scroll_container)
             time.sleep(0.5)
 
-            qtd_atual = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
-            if qtd_atual == ultima_qtd_opcoes:
+            nova_qtd = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
+            if nova_qtd == ultima_qtd_opcoes:
                 scrolls_feitos += 1
             else:
-                scrolls_feitos = 0  # Reset se novas opções aparecerem
-                ultima_qtd_opcoes = qtd_atual
+                ultima_qtd_opcoes = nova_qtd
+                scrolls_feitos = 0
 
         raise Exception(f"Opção '{valor}' não encontrada após {max_scrolls} scrolls.")
 
