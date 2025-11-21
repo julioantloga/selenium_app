@@ -226,12 +226,6 @@ def inscricao_final():
             "mensagem": f"Data de nascimento inválida: {e}"
         }), 400
 
-    if not all([nome, email, telefone, cpf, data_nascimento]):
-        return jsonify({
-            "status": "erro",
-            "mensagem": "Parâmetros obrigatórios ausentes."
-        }), 400
-
     sucesso, logs, valores_dom = preencher_formulario(
         nome, email, telefone, data_nascimento, cpf,
         origem, tenant, job_code, linkedin, pretencao,
