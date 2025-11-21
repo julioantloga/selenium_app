@@ -41,44 +41,46 @@ def normalizar(texto):
 
 def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=15):
     try:
-        import re
+        import unicodedata
 
-        # 1. Encontra o input e clica para abrir o dropdown
+        def normalizar(texto):
+            if not texto:
+                return ""
+            return unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII").strip()
+
+        # 1. Localiza o input e clica para abrir o dropdown
         input_elem = wait.until(EC.presence_of_element_located((By.ID, input_id)))
         ant_select_container = input_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select')]")
         seletor = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selector")
         ActionChains(driver).move_to_element(seletor).click().perform()
         time.sleep(0.5)
 
-        # 2. Identifica o ID da lista: ex: "state" -> "state_list"
-        dropdown_id = input_elem.get_attribute("aria-controls")
-        if not dropdown_id:
-            raise Exception(f"Não foi possível encontrar 'aria-controls' no input '{input_id}'.")
+        # 2. Localiza a listbox pelo ID composto
+        listbox_id = f"{input_id}_list"
+        listbox_elem = wait.until(EC.presence_of_element_located((By.ID, listbox_id)))
 
-        # 3. Aguarda o elemento da lista ser visível
-        listbox_elem = wait.until(EC.visibility_of_element_located((By.ID, dropdown_id)))
+        # 3. Sobe para o dropdown container correspondente
+        dropdown_container = listbox_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select-dropdown') and not(contains(@class, 'ant-select-dropdown-hidden'))]")
 
-        # 4. Sobe para o dropdown pai correspondente
-        dropdown_popup = listbox_elem.find_element(By.XPATH, "./ancestor::div[contains(@class, 'ant-select-dropdown') and not(contains(@class, 'ant-select-dropdown-hidden'))]")
-
-        # 5. Acha o scroll container correto
-        scroll_container = dropdown_popup.find_element(By.CLASS_NAME, "rc-virtual-list-holder")
+        # 4. Dentro do dropdown certo, localiza o scroll container
+        scroll_container = dropdown_container.find_element(By.CLASS_NAME, "rc-virtual-list-holder")
 
         scrolls_feitos = 0
         ultima_qtd_opcoes = 0
 
         while scrolls_feitos <= max_scrolls:
-            opcoes = dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option")
+            opcoes = dropdown_container.find_elements(By.CLASS_NAME, "ant-select-item-option")
 
             for opcao in opcoes:
                 try:
-                    content_div = opcao.find_element(By.CLASS_NAME, "ant-select-item-option-content")
-                    texto = content_div.text.strip()
-                    if normalizar(texto) == normalizar(valor):
+                    titulo = opcao.get_attribute("title")
+                    if normalizar(titulo) == normalizar(valor):
                         driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
                         wait.until(EC.element_to_be_clickable(opcao))
                         opcao.click()
                         time.sleep(delay_apos)
+
+                        # Captura o valor visível selecionado
                         valor_selecionado = ant_select_container.find_element(By.CLASS_NAME, "ant-select-selection-item").text.strip()
                         return valor_selecionado
                 except Exception:
@@ -88,18 +90,17 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
             driver.execute_script("arguments[0].scrollTop += 100;", scroll_container)
             time.sleep(0.5)
 
-            qtd_atual = len(dropdown_popup.find_elements(By.CLASS_NAME, "ant-select-item-option"))
+            qtd_atual = len(opcoes)
             if qtd_atual == ultima_qtd_opcoes:
                 scrolls_feitos += 1
             else:
                 ultima_qtd_opcoes = qtd_atual
-                scrolls_feitos = 0
+                scrolls_feitos = 0  # reset contador se aparecerem mais opções
 
         raise Exception(f"Opção '{valor}' não encontrada após {max_scrolls} scrolls.")
 
     except Exception as e:
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
-
 
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, pais, estado, cidade):
