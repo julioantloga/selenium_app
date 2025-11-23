@@ -103,7 +103,7 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
         raise Exception(f"Erro ao selecionar valor '{valor}' para o campo '{input_id}': {e}")
 
 
-def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, pais, estado, cidade):
+def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, estado, cidade):
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -201,7 +201,7 @@ def inscricao_final():
     job_code = request.args.get("job_code")
     linkedin = request.args.get("linkedin", "")
     pretencao = request.args.get("pretencao", "")
-    pais = request.args.get("pais")
+    #pais = request.args.get("pais")
     estado = request.args.get("estado")
     cidade = request.args.get("cidade")
 
@@ -209,12 +209,6 @@ def inscricao_final():
         return jsonify({
             "status": "erro",
             "mensagem": "Parâmetros 'tenant' e 'job_code' são obrigatórios."
-        }), 400
-
-    if not all([pais, estado, cidade]):
-        return jsonify({
-            "status": "erro",
-            "mensagem": "Parâmetros 'pais', 'estado' e 'cidade' são obrigatórios."
         }), 400
 
     try:
@@ -229,7 +223,7 @@ def inscricao_final():
     sucesso, logs, valores_dom = preencher_formulario(
         nome, email, telefone, data_nascimento, cpf,
         origem, tenant, job_code, linkedin, pretencao,
-        pais, estado, cidade
+        estado, cidade
     )
 
     if sucesso:
