@@ -233,19 +233,20 @@ def inscricao_final():
         "mensagem": "Parâmetros 'tenant' e 'job_code' são obrigatórios."
         }), 400
 
-    try:
-        data_nascimento_raw = request.args.get("data_nascimento")
-        data_nascimento = formatar_data_nascimento(data_nascimento_raw) if data_nascimento_raw else None
-    except Exception as e:
-        return jsonify({
-        "status": "erro",
-        "mensagem": f"Data de nascimento inválida: {e}"
-        }), 400
+    if request.args.get("data_nascimento"):
+        try:
+            data_nascimento_raw = request.args.get("data_nascimento")
+            data_nascimento = formatar_data_nascimento(data_nascimento_raw) if data_nascimento_raw else None
+        except Exception as e:
+            return jsonify({
+            "status": "erro",
+            "mensagem": f"Data de nascimento inválida: {e}"
+            }), 400        
+    else:
+        data_nascimento = None
 
     sucesso, logs, valores_dom = preencher_formulario(
-    nome, email, telefone, data_nascimento, cpf,
-    origem, tenant, job_code, linkedin, pretencao,
-    estado, cidade
+        nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, estado, cidade
     )
 
     if sucesso:
