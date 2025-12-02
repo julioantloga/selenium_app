@@ -104,6 +104,7 @@ def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_s
 
 
 def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, tenant, job_code, linkedin, pretencao, estado, cidade):
+    
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -112,52 +113,76 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
 
+
     service = Service("/usr/bin/chromedriver")
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
+
     browser_logs = []
     valores_no_dom = {}
+
 
     try:
         url = f"https://oportunidades.mindsight.com.br/{tenant}/{job_code}/register"
         driver.get(url)
         wait = WebDriverWait(driver, 10)
 
-        campo_nome = wait.until(EC.presence_of_element_located((By.ID, "name")))
-        campo_nome.send_keys(nome)
-        campo_email = driver.find_element(By.ID, "email")
-        campo_email.send_keys(email)
-        campo_telefone = driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber")
-        campo_telefone.send_keys(telefone)
-        campo_data = driver.find_element(By.ID, "birthday")
-        campo_data.send_keys(data_nascimento)
-        campo_cpf = driver.find_element(By.ID, "candidateCPF")
-        campo_cpf.send_keys(cpf)
 
-        campo_linkedin = driver.find_element(By.ID, "linkedInProfile")
-        campo_linkedin.send_keys(linkedin or "")
-        campo_pretencao = driver.find_element(By.ID, "salaryExpectation")
-        campo_pretencao.send_keys(pretencao or "")
+        if nome:
+            campo_nome = wait.until(EC.presence_of_element_located((By.ID, "name")))
+            campo_nome.send_keys(nome)
+            valores_no_dom["nome"] = campo_nome.get_attribute("value")
 
-        # Dropdowns encadeados
-        #valor_pais = selecionar_dropdown_ant(driver, wait, "country", pais, delay_apos=2)
-        valor_estado = selecionar_dropdown_ant(driver, wait, "state", estado, delay_apos=2)
-        valor_cidade = selecionar_dropdown_ant(driver, wait, "city", cidade, delay_apos=1)
-        valor_origem = selecionar_dropdown_ant(driver, wait, "candidateSource", origem)
 
-        valores_no_dom = {
-            "nome": campo_nome.get_attribute("value"),
-            "email": campo_email.get_attribute("value"),
-            "telefone": campo_telefone.get_attribute("value"),
-            "data_nascimento": campo_data.get_attribute("value"),
-            "cpf": campo_cpf.get_attribute("value"),
-            "linkedin": campo_linkedin.get_attribute("value"),
-            "pretencao": campo_pretencao.get_attribute("value"),
-            #"pais": valor_pais,
-            "estado": valor_estado,
-            "cidade": valor_cidade,
-            "origem": valor_origem
-        }
+        if email:
+            campo_email = driver.find_element(By.ID, "email")
+            campo_email.send_keys(email)
+            valores_no_dom["email"] = campo_email.get_attribute("value")
+
+
+        if telefone:
+            campo_telefone = driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber")
+            campo_telefone.send_keys(telefone)
+            valores_no_dom["telefone"] = campo_telefone.get_attribute("value")
+
+
+        if data_nascimento:
+            campo_data = driver.find_element(By.ID, "birthday")
+            campo_data.send_keys(data_nascimento)
+            valores_no_dom["data_nascimento"] = campo_data.get_attribute("value")
+
+
+        if cpf:
+            campo_cpf = driver.find_element(By.ID, "candidateCPF")
+            campo_cpf.send_keys(cpf)
+            valores_no_dom["cpf"] = campo_cpf.get_attribute("value")
+
+
+        if linkedin:
+            campo_linkedin = driver.find_element(By.ID, "linkedInProfile")
+            campo_linkedin.send_keys(linkedin)
+            valores_no_dom["linkedin"] = campo_linkedin.get_attribute("value")
+
+
+        if pretencao:
+            campo_pretencao = driver.find_element(By.ID, "salaryExpectation")
+            campo_pretencao.send_keys(pretencao)
+            valores_no_dom["pretencao"] = campo_pretencao.get_attribute("value")
+
+
+        if estado:
+            valor_estado = selecionar_dropdown_ant(driver, wait, "state", estado, delay_apos=2)
+            valores_no_dom["estado"] = valor_estado
+
+
+        if cidade:
+            valor_cidade = selecionar_dropdown_ant(driver, wait, "city", cidade, delay_apos=1)
+            valores_no_dom["cidade"] = valor_cidade
+
+
+        if origem:
+            valor_origem = selecionar_dropdown_ant(driver, wait, "candidateSource", origem)
+            driver.quit()
 
         botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
         driver.execute_script("arguments[0].click();", botao)
@@ -167,9 +192,9 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         logs = driver.get_log("browser")
         for entry in logs:
             browser_logs.append({
-                "level": entry.get("level"),
-                "message": entry.get("message")
-            })
+            "level": entry.get("level"),
+            "message": entry.get("message")
+        })
 
         return True, browser_logs, valores_no_dom
 
@@ -184,62 +209,58 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
     finally:
         driver.quit()
 
-
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Olá! Sistema de automação ativo."})
 
-
 @app.route("/inscricaofinal", methods=["GET"])
 def inscricao_final():
-    nome = request.args.get("nome")
-    email = request.args.get("email")
-    telefone = request.args.get("telefone")
-    cpf = request.args.get("cpf")
-    origem = request.args.get("origem", "Instagram")
-    tenant = request.args.get("tenant")
-    job_code = request.args.get("job_code")
-    linkedin = request.args.get("linkedin", "")
-    pretencao = request.args.get("pretencao", "")
-    #pais = request.args.get("pais")
-    estado = request.args.get("estado")
-    cidade = request.args.get("cidade")
+    nome = request.args.get("nome") or None
+    email = request.args.get("email") or None
+    telefone = request.args.get("telefone") or None
+    cpf = request.args.get("cpf") or None
+    origem = request.args.get("origem") or None
+    tenant = request.args.get("tenant") or None
+    job_code = request.args.get("job_code") or None
+    linkedin = request.args.get("linkedin") or None
+    pretencao = request.args.get("pretencao") or None
+    estado = request.args.get("estado") or None
+    cidade = request.args.get("cidade") or None
 
-    if not all([tenant, job_code]):
+    if not tenant or not job_code:
         return jsonify({
-            "status": "erro",
-            "mensagem": "Parâmetros 'tenant' e 'job_code' são obrigatórios."
+        "status": "erro",
+        "mensagem": "Parâmetros 'tenant' e 'job_code' são obrigatórios."
         }), 400
 
     try:
         data_nascimento_raw = request.args.get("data_nascimento")
-        data_nascimento = formatar_data_nascimento(data_nascimento_raw)
+        data_nascimento = formatar_data_nascimento(data_nascimento_raw) if data_nascimento_raw else None
     except Exception as e:
         return jsonify({
-            "status": "erro",
-            "mensagem": f"Data de nascimento inválida: {e}"
+        "status": "erro",
+        "mensagem": f"Data de nascimento inválida: {e}"
         }), 400
 
     sucesso, logs, valores_dom = preencher_formulario(
-        nome, email, telefone, data_nascimento, cpf,
-        origem, tenant, job_code, linkedin, pretencao,
-        estado, cidade
+    nome, email, telefone, data_nascimento, cpf,
+    origem, tenant, job_code, linkedin, pretencao,
+    estado, cidade
     )
 
     if sucesso:
         return jsonify({
-            "status": "ok",
-            "mensagem": "Formulário enviado com sucesso.",
-            "valores_no_dom": valores_dom
+        "status": "ok",
+        "mensagem": "Formulário enviado com sucesso.",
+        "valores_no_dom": valores_dom
         })
     else:
         return jsonify({
-            "status": "erro",
-            "mensagem": "Erro ao enviar formulário.",
-            "valores_no_dom": valores_dom,
-            "logs": logs
+        "status": "erro",
+        "mensagem": "Erro ao enviar formulário.",
+        "valores_no_dom": valores_dom,
+        "logs": logs
         }), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
