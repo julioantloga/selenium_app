@@ -284,7 +284,7 @@ def upload_curriculo():
     if "file" not in request.files:
         return jsonify({"erro": "Arquivo não enviado"}), 400
 
-    cpf = request.form.get("cpf")
+    cpf = 'arquivo1' #request.form.get("cpf")
     if not cpf:
         return jsonify({"erro": "CPF é obrigatório"}), 400
 
@@ -297,7 +297,7 @@ def upload_curriculo():
         return jsonify({"erro": "Tipo de arquivo não permitido"}), 400
 
     # Sanitizar CPF (caso venha com pontuação)
-    cpf = cpf.replace(".", "").replace("-", "")
+    #cpf = cpf.replace(".", "").replace("-", "")
 
     # Extrair extensão
     ext = file.filename.rsplit(".", 1)[1].lower()
