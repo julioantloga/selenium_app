@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -7,11 +7,22 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
 import time
+import os
 from traceback import format_exc
 from datetime import datetime
 import unicodedata
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+
+UPLOAD_FOLDER = "/curriculo"
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
+
+ALLOWED_EXTENSIONS = {
+    "pdf", "doc", "docx", "jpg", "jpeg", "png", "webp"
+}
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
 def formatar_data_nascimento(data):
@@ -262,6 +273,81 @@ def inscricao_final():
         "valores_no_dom": valores_dom,
         "logs": logs
         }), 500
+
+#UPLOAD DO ARQUIV NO RAILWAY
+@app.route("/curriculo/<filename>")
+def get_curriculo(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route("/upload-curriculo", methods=["POST"])
+def upload_curriculo():
+    if "file" not in request.files:
+        return jsonify({"erro": "Arquivo não enviado"}), 400
+
+    cpf = request.form.get("cpf")
+    if not cpf:
+        return jsonify({"erro": "CPF é obrigatório"}), 400
+
+    file = request.files["file"]
+
+    if file.filename == "":
+        return jsonify({"erro": "Nome de arquivo inválido"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"erro": "Tipo de arquivo não permitido"}), 400
+
+    # Sanitizar CPF (caso venha com pontuação)
+    cpf = cpf.replace(".", "").replace("-", "")
+
+    # Extrair extensão
+    ext = file.filename.rsplit(".", 1)[1].lower()
+
+    filename = secure_filename(f"{cpf}.{ext}")
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+    # Validar tamanho do arquivo
+    file.seek(0, os.SEEK_END)
+    tamanho = file.tell()
+    file.seek(0)
+
+    if tamanho > MAX_FILE_SIZE:
+        return jsonify({
+            "erro": "O tamanho do arquivo excedeu o limite de 2Mb"
+        }), 400
+
+    # Salvar no volume
+    file.save(filepath)
+
+    file_url = f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}/curriculo/{filename}"
+
+    return jsonify({
+        "status": "ok",
+        "cpf": cpf,
+        "arquivo": filename,
+        "url": file_url
+    })
+
+#FUNÇÕES AUXILIARES
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def obter_arquivo_curriculo(cpf):
+    pasta = "/curriculo"
+    extensoes = [".pdf", ".doc", ".docx", ".jpg", ".png", ".jpeg", ".webp"]
+    tamanho_maximo = 2 * 1024 * 1024  # 2MB
+
+    for ext in extensoes:
+        caminho = os.path.join(pasta, f"{cpf}{ext}")
+        if os.path.isfile(caminho):
+            tamanho = os.path.getsize(caminho)
+            if tamanho > tamanho_maximo:
+                raise ValueError("O tamanho do arquivo excedeu o limite de 2Mb")
+            return caminho
+
+    raise FileNotFoundError("Arquivo de currículo não encontrado")
+
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
