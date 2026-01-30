@@ -140,36 +140,43 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         if nome:
             campo_nome = wait.until(EC.presence_of_element_located((By.ID, "name")))
             campo_nome.send_keys(nome)
+            driver.execute_script("arguments[0].blur();", campo_nome)
             valores_no_dom["nome"] = campo_nome.get_attribute("value")
 
         if email:
             campo_email = driver.find_element(By.ID, "email")
             campo_email.send_keys(email)
+            driver.execute_script("arguments[0].blur();", campo_email)
             valores_no_dom["email"] = campo_email.get_attribute("value")
 
         if telefone:
             campo_telefone = driver.find_element(By.ID, "candidatePhoneNumbers_0_phoneNumber")
             campo_telefone.send_keys(telefone)
+            driver.execute_script("arguments[0].blur();", campo_telefone)
             valores_no_dom["telefone"] = campo_telefone.get_attribute("value")
 
         if data_nascimento:
             campo_data = driver.find_element(By.ID, "birthday")
             campo_data.send_keys(data_nascimento)
+            driver.execute_script("arguments[0].blur();", campo_data)
             valores_no_dom["data_nascimento"] = campo_data.get_attribute("value")
 
         if cpf:
             campo_cpf = driver.find_element(By.ID, "candidateCPF")
             campo_cpf.send_keys(cpf)
+            driver.execute_script("arguments[0].blur();", campo_cpf)
             valores_no_dom["cpf"] = campo_cpf.get_attribute("value")
 
         if linkedin:
             campo_linkedin = driver.find_element(By.ID, "linkedInProfile")
             campo_linkedin.send_keys(linkedin)
+            driver.execute_script("arguments[0].blur();", campo_linkedin)
             valores_no_dom["linkedin"] = campo_linkedin.get_attribute("value")
 
         if pretencao:
             campo_pretencao = driver.find_element(By.ID, "salaryExpectation")
             campo_pretencao.send_keys(pretencao)
+            driver.execute_script("arguments[0].blur();", campo_pretencao)
             valores_no_dom["pretencao"] = campo_pretencao.get_attribute("value")
 
         if estado:
@@ -196,6 +203,7 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                         # Remove o display:none temporariamente para permitir o send_keys
                         driver.execute_script("arguments[0].style.display = 'block';", input_curriculo)
                         input_curriculo.send_keys(tmp_file_path)
+                        driver.execute_script("arguments[0].blur();", input_curriculo)
                         valores_no_dom["curriculo"] = curriculo_url
                         time.sleep(1.5)
                     except Exception as e:
@@ -272,6 +280,19 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         except Exception as e:
             browser_logs.append({"level":"WARN","message":f"Falha ao instalar hooks de rede: {e}"})
 
+        # Diagnóstico de checkboxes obrigatórios
+        try:
+            checkboxes = driver.execute_script("""
+                return Array.from(document.querySelectorAll('input[type="checkbox"]')).map(c => ({
+                    id: c.id || null,
+                    name: c.name || null,
+                    checked: c.checked,
+                    required: c.required
+                }));
+            """)
+            browser_logs.append({"level": "DEBUG", "message": f"Checkboxes encontrados: {checkboxes}"})
+        except Exception as e:
+            browser_logs.append({"level": "WARN", "message": f"Falha ao inspecionar checkboxes: {e}"})
 
 
         # ===============================
@@ -280,16 +301,25 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         try:
             # Botão: mais robusto (texto normalizado ou classe primaria)
             try:
-                botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[translate(normalize-space(text()), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='enviar candidatura']")))
-            except TimeoutException:
-                botao = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.ant-btn-primary")))
-            driver.execute_script("arguments[0].click();", botao)
-            browser_logs.append({"level": "INFO", "message": "Botão 'Enviar candidatura' clicado."})
+                driver.execute_script("""
+                const btn = document.querySelector("button.ant-btn-primary");
+                if (btn) {
+                    btn.scrollIntoView({behavior:'smooth', block:'center'});
+                    btn.click();
+                }
+                const forms = document.querySelectorAll("form");
+                forms.forEach(f => { f.dispatchEvent(new Event('submit', {bubbles:true, cancelable:true})); });
+                """)
+                browser_logs.append({"level":"INFO","message":"Forçado evento de submit nos formulários."})
+            except Exception as e:
+                browser_logs.append({"level": "ERROR", "message": f"Falha ao clicar em 'Enviar candidatura': {e}"})
+
+
         except Exception as e:
             browser_logs.append({"level": "ERROR", "message": f"Falha ao clicar em 'Enviar candidatura': {e}"})
 
         # Pequena espera para o front validar/renderizar erros
-        time.sleep(2.0)
+        time.sleep(4.0)
 
         # Diagnóstico visual do botão após o clique
         try:
