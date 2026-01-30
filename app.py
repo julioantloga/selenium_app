@@ -281,7 +281,7 @@ def inscricao_final():
     sucesso, logs, valores_dom = preencher_formulario(
         nome, email, telefone, data_nascimento, cpf,
         origem, tenant, job_code, linkedin, pretencao,
-        estado, cidade, curriculo_url  # 👈 Novo argumento
+        estado, cidade, curriculo_url
     )
 
     if sucesso:
