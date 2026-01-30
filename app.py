@@ -495,6 +495,7 @@ def inscricao_final():
         return jsonify({
             "status": "ok",
             "mensagem": "Formulário enviado com sucesso.",
+            "logs": logs,
             "valores_no_dom": valores_dom
         })
     else:
