@@ -214,8 +214,15 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                     "message": f"Erro ao processar currículo: {e}"
                 })
 
-        botao = driver.find_element(By.XPATH, "//button[.//span[text()='Enviar candidatura']]")
-        driver.execute_script("arguments[0].click();", botao)
+        try:
+            botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='Enviar candidatura']")))
+            driver.execute_script("arguments[0].click();", botao)
+            time.sleep(5)
+        except Exception as e:
+            browser_logs.append({
+                "level": "ERROR",
+                "message": f"Falha ao clicar em 'Enviar candidatura': {e}"
+            })
 
         time.sleep(5)
 
