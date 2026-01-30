@@ -224,14 +224,87 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                 "message": f"Falha ao clicar em 'Enviar candidatura': {e}"
             })
 
-        time.sleep(5)
+        # ===============================
+        # Verificação de erros de campos obrigatórios
+        # ===============================
+        try:
+            # Aguarda até 3 segundos para que as mensagens de erro sejam renderizadas
+            time.sleep(2)
 
-        logs = driver.get_log("browser")
-        for entry in logs:
+            erros_campos = driver.find_elements(By.CSS_SELECTOR, "div.ant-form-item-explain-error")
+
+            mensagens_erro = []
+            for e in erros_campos:
+                try:
+                    texto = e.text.strip()
+                    if texto:
+                        mensagens_erro.append(texto)
+                except Exception:
+                    continue
+
+            if mensagens_erro:
+                mensagem_formatada = "Erro de campo obrigatório:\n- " + "\n- ".join(mensagens_erro)
+                browser_logs.append({
+                    "level": "ERROR",
+                    "message": mensagem_formatada
+                })
+                valores_no_dom["resultado_envio"] = "Falha na validação de campos obrigatórios"
+                valores_no_dom["erros_campos"] = mensagens_erro
+            else:
+                browser_logs.append({
+                    "level": "INFO",
+                    "message": "Nenhum erro de campo obrigatório encontrado."
+                })
+
+        except Exception as e:
             browser_logs.append({
-            "level": entry.get("level"),
-            "message": entry.get("message")
-        })
+                "level": "ERROR",
+                "message": f"Falha ao verificar erros de campos obrigatórios: {e}"
+            })
+
+        # ===============================
+        # Verificação de sucesso pós-envio (modal Ant Design)
+        # ===============================
+        try:
+            # Aguarda até 10 segundos o modal de sucesso aparecer
+            modal_sucesso = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((
+                    By.CSS_SELECTOR,
+                    "div.ant-modal-content"
+                ))
+            )
+
+            # Captura o texto visível do modal
+            texto_modal = modal_sucesso.text.strip()
+
+            if "Obrigado" in texto_modal or "confirmada" in texto_modal:
+                valores_no_dom["resultado_envio"] = "Candidatura enviada e confirmada com sucesso"
+                valores_no_dom["mensagem_sucesso"] = texto_modal
+                browser_logs.append({
+                    "level": "INFO",
+                    "message": f"Envio confirmado: {texto_modal[:180]}..."
+                })
+            else:
+                valores_no_dom["resultado_envio"] = "Modal exibido, mas sem confirmação explícita"
+                valores_no_dom["mensagem_modal"] = texto_modal
+                browser_logs.append({
+                    "level": "WARN",
+                    "message": f"Modal exibido sem confirmação: {texto_modal[:180]}..."
+                })
+
+        except TimeoutException:
+            browser_logs.append({
+                "level": "ERROR",
+                "message": "Nenhum modal de sucesso detectado após envio."
+            })
+            valores_no_dom["resultado_envio"] = "Falha: nenhum modal de sucesso detectado"
+
+        except Exception as e:
+            browser_logs.append({
+                "level": "ERROR",
+                "message": f"Erro ao verificar modal de sucesso: {e}"
+            })
+    
 
         return True, browser_logs, valores_no_dom
 
