@@ -291,6 +291,33 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
         # Pequena espera para o front validar/renderizar erros
         time.sleep(2.0)
 
+        # Diagnóstico visual do botão após o clique
+        try:
+            botao = driver.find_element(By.CSS_SELECTOR, "button.ant-btn-primary")
+            classes = botao.get_attribute("class")
+            disabled = botao.get_attribute("disabled")
+            texto_botao = botao.text
+            browser_logs.append({
+                "level": "DEBUG",
+                "message": f"Estado do botão após clique → texto='{texto_botao}', disabled='{disabled}', classes='{classes}'"
+            })
+        except Exception as e:
+            browser_logs.append({"level":"WARN","message":f"Falha ao inspecionar botão pós-clique: {e}"})
+
+        # Verifica se há mensagens de erro ocultas (não exibidas visualmente)
+        try:
+            erros_ocultos = driver.execute_script("""
+                return Array.from(document.querySelectorAll('.ant-form-item-explain-error'))
+                    .map(el => ({visible: !!(el.offsetParent), text: el.textContent.trim()}));
+            """)
+            if erros_ocultos:
+                browser_logs.append({
+                    "level": "DEBUG",
+                    "message": f"Mensagens de erro no DOM (incluindo ocultas): {erros_ocultos}"
+                })
+        except Exception as e:
+            browser_logs.append({"level":"WARN","message":f"Falha ao verificar erros ocultos: {e}"})
+
         # -------------------------------
         # 1) Erros de campos obrigatórios (AntD)
         # -------------------------------
