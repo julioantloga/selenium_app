@@ -16,7 +16,6 @@ from werkzeug.utils import secure_filename
 import requests
 import tempfile
 
-
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "/curriculo"
@@ -215,97 +214,197 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                     "message": f"Erro ao processar currículo: {e}"
                 })
 
+
+        # -------------------------------
+        # Hooks de diagnóstico (rede + XHR)
+        # -------------------------------
         try:
-            botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='Enviar candidatura']")))
-            driver.execute_script("arguments[0].click();", botao)
-            time.sleep(5)
+            driver.execute_script("""
+            (function () {
+            // Evita reinstalar
+            if (window.__atsHooksInstalled) return;
+            window.__atsHooksInstalled = true;
+
+            // Logs de fetch
+            window.__fetchLogs = [];
+            const _fetch = window.fetch;
+            window.fetch = async function (...args) {
+                const startedAt = Date.now();
+                let url = (args && args[0]) ? args[0].toString() : '';
+                let status = 'pending', ok = null;
+                try {
+                const res = await _fetch.apply(this, args);
+                status = res.status; ok = res.ok;
+                window.__fetchLogs.push({ type: 'fetch', url, ok, status, startedAt, finishedAt: Date.now() });
+                return res;
+                } catch (e) {
+                window.__fetchLogs.push({ type: 'fetch', url, ok: false, status: 'exception', error: (e && e.message) || String(e), startedAt, finishedAt: Date.now() });
+                throw e;
+                }
+            };
+
+            // Logs de XHR
+            window.__xhrLogs = [];
+            const _open = XMLHttpRequest.prototype.open;
+            const _send = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.open = function(method, url){
+                this.__atsUrl = url;
+                this.__atsMethod = method;
+                return _open.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function(){
+                const startedAt = Date.now();
+                this.addEventListener('loadend', function(){
+                window.__xhrLogs.push({
+                    type: 'xhr',
+                    method: this.__atsMethod,
+                    url: this.__atsUrl,
+                    status: this.status,
+                    ok: (this.status >= 200 && this.status < 300),
+                    startedAt,
+                    finishedAt: Date.now()
+                });
+                });
+                return _send.apply(this, arguments);
+            };
+            })();
+            """)
         except Exception as e:
-            browser_logs.append({
-                "level": "ERROR",
-                "message": f"Falha ao clicar em 'Enviar candidatura': {e}"
-            })
+            browser_logs.append({"level":"WARN","message":f"Falha ao instalar hooks de rede: {e}"})
+
+
 
         # ===============================
-        # Verificação de erros de campos obrigatórios
+        # Envio do formulário
         # ===============================
         try:
-            # Aguarda até 3 segundos para que as mensagens de erro sejam renderizadas
-            time.sleep(2)
+            # Botão: mais robusto (texto normalizado ou classe primaria)
+            try:
+                botao = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[translate(normalize-space(text()), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='enviar candidatura']")))
+            except TimeoutException:
+                botao = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.ant-btn-primary")))
+            driver.execute_script("arguments[0].click();", botao)
+            browser_logs.append({"level": "INFO", "message": "Botão 'Enviar candidatura' clicado."})
+        except Exception as e:
+            browser_logs.append({"level": "ERROR", "message": f"Falha ao clicar em 'Enviar candidatura': {e}"})
 
+        # Pequena espera para o front validar/renderizar erros
+        time.sleep(2.0)
+
+        # -------------------------------
+        # 1) Erros de campos obrigatórios (AntD)
+        # -------------------------------
+        try:
             erros_campos = driver.find_elements(By.CSS_SELECTOR, "div.ant-form-item-explain-error")
-
             mensagens_erro = []
             for e in erros_campos:
                 try:
-                    texto = e.text.strip()
-                    if texto:
-                        mensagens_erro.append(texto)
+                    txt = (e.text or "").strip()
+                    if txt:
+                        mensagens_erro.append(txt)
                 except Exception:
-                    continue
-
+                    pass
             if mensagens_erro:
-                mensagem_formatada = "Erro de campo obrigatório:\n- " + "\n- ".join(mensagens_erro)
-                browser_logs.append({
-                    "level": "ERROR",
-                    "message": mensagem_formatada
-                })
                 valores_no_dom["resultado_envio"] = "Falha na validação de campos obrigatórios"
                 valores_no_dom["erros_campos"] = mensagens_erro
-            else:
-                browser_logs.append({
-                    "level": "INFO",
-                    "message": "Nenhum erro de campo obrigatório encontrado."
-                })
-
+                browser_logs.append({"level":"ERROR","message":"Erro de campo obrigatório:\n- " + "\n- ".join(mensagens_erro)})
         except Exception as e:
-            browser_logs.append({
-                "level": "ERROR",
-                "message": f"Falha ao verificar erros de campos obrigatórios: {e}"
-            })
+            browser_logs.append({"level":"WARN","message":f"Falha ao verificar erros obrigatórios: {e}"})
 
-        # ===============================
-        # Verificação de sucesso pós-envio (modal Ant Design)
-        # ===============================
+
+        # -------------------------------
+        # 2) Modal de sucesso OU modal/toast de erro
+        # -------------------------------
+        sucesso_detectado = False
         try:
-            # Aguarda até 10 segundos o modal de sucesso aparecer
-            modal_sucesso = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((
-                    By.CSS_SELECTOR,
-                    "div.ant-modal-content"
-                ))
+            # Espera aparecer qualquer modal
+            modal = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.ant-modal-content"))
             )
-
-            # Captura o texto visível do modal
-            texto_modal = modal_sucesso.text.strip()
-
-            if "Obrigado" in texto_modal or "confirmada" in texto_modal:
+            texto_modal = (modal.text or "").strip()
+            # Heurísticas de sucesso/erro
+            if ("Obrigado" in texto_modal) or ("confirmada" in texto_modal.lower()):
                 valores_no_dom["resultado_envio"] = "Candidatura enviada e confirmada com sucesso"
                 valores_no_dom["mensagem_sucesso"] = texto_modal
-                browser_logs.append({
-                    "level": "INFO",
-                    "message": f"Envio confirmado: {texto_modal[:180]}..."
-                })
+                browser_logs.append({"level":"INFO","message":f"Modal de sucesso detectado: {texto_modal[:200]}..."})
+                sucesso_detectado = True
             else:
-                valores_no_dom["resultado_envio"] = "Modal exibido, mas sem confirmação explícita"
-                valores_no_dom["mensagem_modal"] = texto_modal
-                browser_logs.append({
-                    "level": "WARN",
-                    "message": f"Modal exibido sem confirmação: {texto_modal[:180]}..."
-                })
-
+                # Tenta detectar modal de erro (ícone close-circle ou texto típico)
+                tem_icone_erro = len(modal.find_elements(By.CSS_SELECTOR, ".anticon-close-circle")) > 0
+                if tem_icone_erro or "erro" in texto_modal.lower() or "falha" in texto_modal.lower():
+                    valores_no_dom["resultado_envio"] = "Falha no envio (modal)"
+                    valores_no_dom["mensagem_erro_modal"] = texto_modal
+                    browser_logs.append({"level":"ERROR","message":f"Modal de erro detectado: {texto_modal[:200]}..."})
+                else:
+                    browser_logs.append({"level":"WARN","message":f"Modal exibido sem confirmação explícita: {texto_modal[:200]}..."})
+                    # Apenas registre; diagnóstico continua abaixo
         except TimeoutException:
-            browser_logs.append({
-                "level": "ERROR",
-                "message": "Nenhum modal de sucesso detectado após envio."
-            })
-            valores_no_dom["resultado_envio"] = "Falha: nenhum modal de sucesso detectado"
+            browser_logs.append({"level":"INFO","message":"Nenhum modal AntD detectado após o envio."})
 
+        # Também checa toasts (ant-message / ant-notification)
+        try:
+            msg_blocks = driver.find_elements(By.CSS_SELECTOR, "div.ant-message, div.ant-notification")
+            textos = []
+            for b in msg_blocks:
+                t = (b.text or "").strip()
+                if t:
+                    textos.append(t)
+            if textos:
+                valores_no_dom["notificacoes"] = textos
+                # marca sucesso se houver palavra-chave
+                if any(("sucesso" in t.lower()) or ("enviada" in t.lower()) for t in textos):
+                    valores_no_dom["resultado_envio"] = "Candidatura enviada e confirmada via notificação"
+                    sucesso_detectado = True
+        except Exception:
+            pass
+
+
+        # -------------------------------
+        # 3) Logs de rede (fetch/XHR) – status das chamadas
+        # -------------------------------
+        try:
+            # Espera mais um pouco pro front enviar requisições
+            time.sleep(2.0)
+            fetch_logs = driver.execute_script("return (window.__fetchLogs || []);")
+            xhr_logs = driver.execute_script("return (window.__xhrLogs || []);")
+            if fetch_logs:
+                valores_no_dom["fetch_logs"] = fetch_logs
+            if xhr_logs:
+                valores_no_dom["xhr_logs"] = xhr_logs
+
+            # Sinaliza erro se houver response não-OK para endpoints relevantes
+            erros_rede = []
+            for item in (fetch_logs or []) + (xhr_logs or []):
+                try:
+                    url = (item.get("url") or "")
+                    status = str(item.get("status"))
+                    ok = item.get("ok")
+                    if ("register" in url or "candidate" in url or "application" in url) and (ok is False or status.startswith("4") or status.startswith("5")):
+                        erros_rede.append({"url": url, "status": status, "ok": ok})
+                except Exception:
+                    pass
+            if erros_rede and not sucesso_detectado:
+                valores_no_dom["resultado_envio"] = "Falha no envio (rede)"
+                valores_no_dom["erros_rede"] = erros_rede
+                browser_logs.append({"level":"ERROR","message":f"Falhas de rede detectadas: {erros_rede}"})
         except Exception as e:
-            browser_logs.append({
-                "level": "ERROR",
-                "message": f"Erro ao verificar modal de sucesso: {e}"
-            })
-    
+            browser_logs.append({"level":"WARN","message":f"Falha ao coletar logs de rede: {e}"})
+
+
+        # -------------------------------
+        # 4) Console do browser (melhor com try/except em headless)
+        # -------------------------------
+        try:
+            logs = driver.get_log("browser")
+            for entry in logs:
+                browser_logs.append({"level": entry.get("level"), "message": entry.get("message")})
+        except Exception:
+            pass
+
+        # Resultado final caso nada acuse claramente
+        if not sucesso_detectado and "resultado_envio" not in valores_no_dom:
+            valores_no_dom["resultado_envio"] = "Falha: nenhum modal/feedback de sucesso detectado"
+  
 
         return True, browser_logs, valores_no_dom
 
