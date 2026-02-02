@@ -199,17 +199,23 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                         tmp_file_path = tmp_file.name
 
                     try:
-                        input_curriculo = wait.until(EC.presence_of_element_located((By.ID, "attachment")))
-                        # Remove o display:none temporariamente para permitir o send_keys
+                        # Localiza novamente o input de upload (evita stale element)
+                        input_curriculo = wait.until(
+                            EC.presence_of_element_located((By.ID, "attachment"))
+                        )
                         driver.execute_script("arguments[0].style.display = 'block';", input_curriculo)
+
+                        # Refaz a busca para garantir que o elemento é o atual no DOM
+                        input_curriculo = driver.find_element(By.ID, "attachment")
                         input_curriculo.send_keys(tmp_file_path)
                         driver.execute_script("arguments[0].blur();", input_curriculo)
                         valores_no_dom["curriculo"] = curriculo_url
+                        browser_logs.append({"level": "INFO", "message": "Currículo enviado com sucesso."})
                         time.sleep(1.5)
                     except Exception as e:
                         browser_logs.append({
                             "level": "ERROR",
-                            "message": f"Falha ao preencher campo de currículo: {e}"
+                            "message": f"Falha ao preencher campo de currículo (upload): {e}"
                         })
                 else:
                     browser_logs.append({
@@ -221,7 +227,6 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                     "level": "ERROR",
                     "message": f"Erro ao processar currículo: {e}"
                 })
-
 
         # -------------------------------
         # Hooks de diagnóstico (rede + XHR)
