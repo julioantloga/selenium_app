@@ -199,23 +199,32 @@ def preencher_formulario(nome, email, telefone, data_nascimento, cpf, origem, te
                         tmp_file_path = tmp_file.name
 
                     try:
-                        # Localiza novamente o input de upload (evita stale element)
-                        input_curriculo = wait.until(
-                            EC.presence_of_element_located((By.ID, "attachment"))
-                        )
-                        driver.execute_script("arguments[0].style.display = 'block';", input_curriculo)
+                        # 1️⃣ Localiza e clica no botão "Anexar arquivo"
+                        botao_upload = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.ant-btn-default")))
+                        driver.execute_script("arguments[0].scrollIntoView({behavior:'smooth', block:'center'});", botao_upload)
+                        botao_upload.click()
+                        time.sleep(1)
 
-                        # Refaz a busca para garantir que o elemento é o atual no DOM
-                        input_curriculo = driver.find_element(By.ID, "attachment")
+                        # 2️⃣ Injeta o arquivo diretamente via JS (no novo input)
+                        driver.execute_script("""
+                            const input = document.querySelector('input[type="file"][id="attachment"]');
+                            if (input) {
+                                input.removeAttribute('style');
+                            }
+                        """)
+                        time.sleep(0.5)
+
+                        input_curriculo = wait.until(EC.presence_of_element_located((By.ID, "attachment")))
                         input_curriculo.send_keys(tmp_file_path)
                         driver.execute_script("arguments[0].blur();", input_curriculo)
+
                         valores_no_dom["curriculo"] = curriculo_url
-                        browser_logs.append({"level": "INFO", "message": "Currículo enviado com sucesso."})
+                        browser_logs.append({"level": "INFO", "message": "Currículo anexado com sucesso via botão 'Anexar arquivo'."})
                         time.sleep(1.5)
                     except Exception as e:
                         browser_logs.append({
                             "level": "ERROR",
-                            "message": f"Falha ao preencher campo de currículo (upload): {e}"
+                            "message": f"Falha ao anexar currículo: {e}"
                         })
                 else:
                     browser_logs.append({
