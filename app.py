@@ -50,7 +50,7 @@ def normalizar(texto):
         return ""
     return unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII").strip()
 
-def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=40):
+def selecionar_dropdown_ant(driver, wait, input_id, valor, delay_apos=1.5, max_scrolls=60):
     try:
         import unicodedata
 
